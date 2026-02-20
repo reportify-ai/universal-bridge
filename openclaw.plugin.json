@@ -1,0 +1,27 @@
+{
+  "id": "universal-bridge",
+  "channels": ["universal-bridge"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "webhookUrl": {
+        "type": "string",
+        "description": "URL to POST outbound messages to"
+      },
+      "secretKey": {
+        "type": "string",
+        "description": "HMAC-SHA256 secret for signing/verifying payloads"
+      },
+      "userId": {
+        "type": "string",
+        "description": "User ID of this OpenClaw instance in openclaw-proxy"
+      },
+      "gatewayPort": {
+        "type": "number",
+        "default": 3100,
+        "description": "Port for inbound webhook listener"
+      }
+    },
+    "required": ["webhookUrl", "userId"]
+  }
+}
