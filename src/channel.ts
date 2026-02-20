@@ -68,7 +68,7 @@ async function handleInboundMessage(params: {
   const { cfg, accountId, accountConfig, msg, log } = params;
   const rt = getBridgeRuntime();
 
-  log?.debug?.('[Bridge] Inbound:', JSON.stringify(msg));
+  log?.debug?.(`[Bridge] Inbound: ${JSON.stringify(msg)}`);
 
   const route = rt.channel.routing.resolveAgentRoute({
     cfg,
@@ -106,7 +106,7 @@ async function handleInboundMessage(params: {
     SenderName: msg.userId,
     SenderId: msg.userId,
     Provider: 'universal-bridge',
-    Surface: 'webhook',
+    Surface: 'universal-bridge',
     MessageSid: msg.messageId,
     Timestamp: msg.timestamp,
     CommandAuthorized: true,
@@ -124,25 +124,34 @@ async function handleInboundMessage(params: {
     },
   });
 
-  log?.info?.(`[Bridge] Inbound: from=${msg.userId} text="${msg.text.slice(0, 50)}..."`);
+  log?.info?.(`[Bridge] Inbound: from=${msg.userId} sessionKey=${ctx.SessionKey} agentRoute=${route.agentId}`);
 
-  await rt.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
-    ctx,
-    cfg,
-    dispatcherOptions: {
-      responsePrefix: '',
-      deliver: async (payload: any) => {
-        const textToSend = payload.markdown || payload.text;
-        if (!textToSend) return;
-        try {
-          await sendReply(accountConfig, msg.userId, textToSend, log);
-        } catch (err: any) {
-          log?.error?.(`[Bridge] Reply failed: ${err.message}`);
-          throw err;
-        }
+  try {
+    const result = await rt.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
+      ctx,
+      cfg,
+      dispatcherOptions: {
+        humanDelay: rt.channel.reply.resolveHumanDelayConfig(cfg, route.agentId),
+        deliver: async (payload: any) => {
+          const textToSend = payload.text ?? '';
+          if (!textToSend.trim()) return;
+          try {
+            await sendReply(accountConfig, msg.sessionId, textToSend, log);
+          } catch (err: any) {
+            log?.error?.(`[Bridge] Reply failed: ${err.message}`);
+            throw err;
+          }
+        },
+        onError: (err: unknown, info: any) => {
+          log?.error?.(`[Bridge] ${info?.kind ?? 'unknown'} reply error: ${String(err)}`);
+        },
       },
-    },
-  });
+    });
+    log?.info?.(`[Bridge] Dispatch completed: queuedFinal=${result.queuedFinal} counts=${JSON.stringify(result.counts)}`);
+  } catch (err: any) {
+    log?.error?.(`[Bridge] Dispatch error: ${err.message}`);
+    log?.error?.(`[Bridge] Dispatch stack: ${err.stack}`);
+  }
 }
 
 // ============ Channel Plugin Definition ============
@@ -264,9 +273,11 @@ export const bridgePlugin: BridgeChannelPlugin = {
         ctx.setStatus({
           ...ctx.getStatus(),
           running: true,
+          lastStartAt: Date.now(),
           lastError: null,
         });
-        return { stop: () => {} };
+        // Keep the promise alive to prevent OpenClaw from restarting
+        return new Promise<GatewayStopResult>(() => {});
       }
 
       let stopped = false;
@@ -347,35 +358,36 @@ export const bridgePlugin: BridgeChannelPlugin = {
         lastError: null,
       });
 
+      // Block until stop() is called, preventing OpenClaw from restarting
+      let resolveStop: () => void;
+      const stopPromise = new Promise<void>((resolve) => { resolveStop = resolve; });
+
+      const doStop = () => {
+        if (stopped) return;
+        stopped = true;
+        ctx.log?.info?.(`[${account.accountId}] Stopping webhook listener...`);
+        server.close();
+        ctx.setStatus({
+          ...ctx.getStatus(),
+          running: false,
+          lastStopAt: Date.now(),
+        });
+        ctx.log?.info?.(`[${account.accountId}] Webhook listener stopped`);
+        resolveStop!();
+      };
+
       // Handle abort signal for graceful shutdown
       if (abortSignal) {
         abortSignal.addEventListener('abort', () => {
-          if (stopped) return;
-          stopped = true;
-          ctx.log?.info?.(`[${account.accountId}] Abort signal received, stopping webhook listener...`);
-          server.close();
-          ctx.setStatus({
-            ...ctx.getStatus(),
-            running: false,
-            lastStopAt: Date.now(),
-          });
+          ctx.log?.info?.(`[${account.accountId}] Abort signal received`);
+          doStop();
         });
       }
 
-      return {
-        stop: () => {
-          if (stopped) return;
-          stopped = true;
-          ctx.log?.info?.(`[${account.accountId}] Stopping webhook listener...`);
-          server.close();
-          ctx.setStatus({
-            ...ctx.getStatus(),
-            running: false,
-            lastStopAt: Date.now(),
-          });
-          ctx.log?.info?.(`[${account.accountId}] Webhook listener stopped`);
-        },
-      };
+      // Wait for stop to be called (keeps startAccount alive)
+      await stopPromise;
+
+      return { stop: doStop };
     },
   },
   status: {
