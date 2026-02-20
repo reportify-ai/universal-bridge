@@ -1,4 +1,5 @@
 import http from 'http';
+import net from 'net';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk';
 import { getBridgeRuntime } from './runtime';
 import { signPayload, verifySignature } from './utils';
@@ -247,6 +248,27 @@ export const bridgePlugin: BridgeChannelPlugin = {
 
       ctx.log?.info?.(`[${account.accountId}] Starting webhook listener on port ${port}...`);
 
+      // Detect if port is already in use (assume it's a previous instance still running)
+      const portInUse = await new Promise<boolean>((resolve) => {
+        const probe = net.createConnection({ port, host: '127.0.0.1' }, () => {
+          probe.destroy();
+          resolve(true);
+        });
+        probe.on('error', () => {
+          resolve(false);
+        });
+      });
+
+      if (portInUse) {
+        ctx.log?.info?.(`[${account.accountId}] Port ${port} already in use, assuming previous instance is running. Skipping startup.`);
+        ctx.setStatus({
+          ...ctx.getStatus(),
+          running: true,
+          lastError: null,
+        });
+        return { stop: () => {} };
+      }
+
       let stopped = false;
 
       // Check if already aborted
@@ -297,8 +319,24 @@ export const bridgePlugin: BridgeChannelPlugin = {
         }
       });
 
-      server.listen(port, () => {
-        ctx.log?.info?.(`[${account.accountId}] Webhook listener ready on port ${port}`);
+      // Wait for server to start listening, handle port conflicts
+      await new Promise<void>((resolve, reject) => {
+        server.on('error', (err: NodeJS.ErrnoException) => {
+          const msg = err.code === 'EADDRINUSE'
+            ? `Port ${port} is already in use. Change gatewayPort in openclaw.json or stop the process using this port.`
+            : `Webhook listener failed to start: ${err.message}`;
+          ctx.log?.error?.(`[${account.accountId}] ${msg}`);
+          ctx.setStatus({
+            ...ctx.getStatus(),
+            running: false,
+            lastError: msg,
+          });
+          reject(new Error(msg));
+        });
+        server.listen(port, () => {
+          ctx.log?.info?.(`[${account.accountId}] Webhook listener ready on port ${port}`);
+          resolve();
+        });
       });
 
       // Update status: running
