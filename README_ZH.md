@@ -23,7 +23,11 @@ IM 用户 ──→ IM 平台 ──→ openclaw-proxy ──→ Universal Bridg
 
 ## 安装
 
-将插件复制到 OpenClaw 的扩展目录：
+```bash
+openclaw plugins install @reportify-ai/universal-bridge
+```
+
+或手动复制到 OpenClaw 扩展目录：
 
 ```bash
 cp -r universal-bridge /path/to/openclaw/extensions/

@@ -1,5 +1,5 @@
 {
-  "name": "universal-bridge",
+  "name": "@reportify-ai/universal-bridge",
   "version": "0.1.0",
   "description": "A generic bidirectional webhook bridge channel plugin for OpenClaw",
   "main": "index.ts",
@@ -7,7 +7,8 @@
   "files": [
     "index.ts",
     "src",
-    "openclaw.plugin.json"
+    "openclaw.plugin.json",
+    "tsconfig.json"
   ],
   "scripts": {
     "type-check": "tsc --noEmit",
@@ -24,9 +25,9 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pawa-openclaw/universal-bridge.git"
+    "url": "git+https://github.com/reportify-ai/universal-bridge.git"
   },
-  "homepage": "https://github.com/pawa-openclaw/universal-bridge",
+  "homepage": "https://github.com/reportify-ai/universal-bridge",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
     "access": "public"
@@ -60,9 +61,9 @@
       ]
     },
     "install": {
-      "npmSpec": "universal-bridge",
+      "npmSpec": "@reportify-ai/universal-bridge",
       "localPath": ".",
-      "defaultChoice": "local"
+      "defaultChoice": "npm"
     }
   }
 }

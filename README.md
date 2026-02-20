@@ -23,7 +23,11 @@ IM User ──→ IM Platform ──→ openclaw-proxy ──→ Universal Bridg
 
 ## Installation
 
-Copy the plugin to your OpenClaw extensions directory:
+```bash
+openclaw plugins install @reportify-ai/universal-bridge
+```
+
+Or manually copy to your OpenClaw extensions directory:
 
 ```bash
 cp -r universal-bridge /path/to/openclaw/extensions/
