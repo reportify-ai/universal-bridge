@@ -315,18 +315,31 @@ export const bridgePlugin: BridgeChannelPlugin = {
 
           const msg: InboundMessage = JSON.parse(body);
 
-          await handleInboundMessage({
+          // Respond immediately so openclaw-proxy doesn't wait for agent processing
+          res.writeHead(200).end('ok');
+
+          // Send ack to let the user know the message was received
+          try {
+            await sendReply(config, msg.sessionId, '收到', ctx.log);
+          } catch (ackErr: any) {
+            ctx.log?.error?.(`[${account.accountId}] Failed to send ack: ${ackErr.message}`);
+          }
+
+          // Process message asynchronously
+          handleInboundMessage({
             cfg,
             accountId: account.accountId,
             accountConfig: config,
             msg,
             log: ctx.log,
+          }).catch((err: any) => {
+            ctx.log?.error?.(`[${account.accountId}] Async message handling error: ${err.message}`);
           });
-
-          res.writeHead(200).end('ok');
         } catch (err: any) {
           ctx.log?.error?.(`[${account.accountId}] Webhook handler error: ${err.message}`);
-          res.writeHead(500).end('Internal error');
+          if (!res.headersSent) {
+            res.writeHead(500).end('Internal error');
+          }
         }
       });
 
