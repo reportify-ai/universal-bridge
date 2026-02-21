@@ -41,6 +41,12 @@ npm install
 
 在 `openclaw.json` 中添加：
 
+```bash
+openclaw config set plugins.allow '["universal-bridge"]'
+openclaw config set channels.universal-bridge.webhookUrl "https://your-proxy.example.com/openclaw-proxy/webhook/bridge"
+openclaw config set channels.universal-bridge.userId "your-user-id-in-proxy"
+```
+
 ```json
 {
   "channels": {

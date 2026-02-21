@@ -15,6 +15,7 @@ IM User ──→ IM Platform ──→ openclaw-proxy ──→ Universal Bridg
                                                        │
                                                    OpenClaw Agent
                                                        │
+                                     Universal Bridge（outbound）──→ openclaw-proxy ──→ IM User
 ```
 
 - **Inbound**: Receives messages from openclaw-proxy via HTTP webhook listener, dispatches to OpenClaw agent
