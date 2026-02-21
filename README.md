@@ -15,7 +15,6 @@ IM User ──→ IM Platform ──→ openclaw-proxy ──→ Universal Bridg
                                                        │
                                                    OpenClaw Agent
                                                        │
-                                          Universal Bridge (outbound) ──→ openclaw-proxy ──→ IM User
 ```
 
 - **Inbound**: Receives messages from openclaw-proxy via HTTP webhook listener, dispatches to OpenClaw agent
@@ -43,7 +42,7 @@ Add to your `openclaw.json`:
 
 ```bash
 openclaw config set plugins.allow '["universal-bridge"]'
-config set channels.universal-bridge.webhookUrl "https://your-proxy.example.com/openclaw-proxy/webhook/bridge"
+openclaw config set channels.universal-bridge.webhookUrl "https://your-proxy.example.com/openclaw-proxy/webhook/bridge"
 openclaw config set channels.universal-bridge.userId "your-user-id-in-proxy"
 ```
 
@@ -92,7 +91,10 @@ Multi-account configuration:
 
 ## Message Formats
 
-### Inbound (POST to webhook listener)
+### Inbound (openclaw-proxy → plugin)
+
+**URL:** `POST http://<openclaw-host>:<gatewayPort>/`
+**Default:** `POST http://localhost:3100/`
 
 openclaw-proxy sends messages to the plugin's webhook listener:
 
@@ -110,9 +112,19 @@ Headers:
 - `X-Signature`: HMAC-SHA256 hex digest of the request body (only when `secretKey` is configured)
 - `Content-Type`: `application/json`
 
-### Outbound (POST to webhookUrl)
+Example:
 
-The plugin sends replies back to openclaw-proxy:
+```bash
+curl -X POST http://localhost:3100/ \
+  -H "Content-Type: application/json" \
+  -d '{"messageId":"msg-001","timestamp":1700000000000,"userId":"user-1","sessionId":"sess-1","text":"Hello"}'
+```
+
+### Outbound (plugin → openclaw-proxy)
+
+**URL:** `POST <webhookUrl>` (configured in `openclaw.json`)
+
+The plugin sends agent replies back to openclaw-proxy:
 
 ```json
 {

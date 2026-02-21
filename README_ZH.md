@@ -86,7 +86,10 @@ npm install
 
 ## 消息格式
 
-### Inbound（POST 到 webhook listener）
+### Inbound（openclaw-proxy → 插件）
+
+**地址：** `POST http://<openclaw-host>:<gatewayPort>/`
+**默认：** `POST http://localhost:3100/`
 
 openclaw-proxy 向插件的 webhook listener 发送消息：
 
@@ -104,9 +107,19 @@ openclaw-proxy 向插件的 webhook listener 发送消息：
 - `X-Signature`：请求体的 HMAC-SHA256 十六进制摘要（仅在配置了 `secretKey` 时）
 - `Content-Type`：`application/json`
 
-### Outbound（POST 到 webhookUrl）
+示例：
 
-插件将回复发回 openclaw-proxy：
+```bash
+curl -X POST http://localhost:3100/ \
+  -H "Content-Type: application/json" \
+  -d '{"messageId":"msg-001","timestamp":1700000000000,"userId":"user-1","sessionId":"sess-1","text":"你好"}'
+```
+
+### Outbound（插件 → openclaw-proxy）
+
+**地址：** `POST <webhookUrl>`（在 `openclaw.json` 中配置）
+
+插件将 agent 回复发回 openclaw-proxy：
 
 ```json
 {
