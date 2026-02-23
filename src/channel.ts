@@ -281,6 +281,51 @@ export const bridgePlugin: BridgeChannelPlugin = {
         messageId: String(payload.timestamp),
       };
     },
+    sendMedia: async ({ cfg, to, text, mediaUrl, accountId, log }: any) => {
+      const config = getConfig(cfg);
+      const id = accountId || "default";
+      const account: AccountConfig = config.accounts?.[id] || config;
+
+      // Combine text and media URL into a single text message
+      const parts: string[] = [];
+      if (text?.trim()) parts.push(text.trim());
+      if (mediaUrl?.trim()) parts.push(mediaUrl.trim());
+      const combined = parts.join("\n");
+      if (!combined) return { channel: "universal-bridge", messageId: "" };
+
+      const payload: OutboundPayload = {
+        userId: account.userId,
+        sessionId: to,
+        text: combined,
+        timestamp: Date.now(),
+      };
+
+      const body = JSON.stringify(payload);
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-Timestamp": String(payload.timestamp),
+      };
+      if (account.secretKey) {
+        headers["X-Signature"] = signPayload(body, account.secretKey);
+      }
+
+      const res = await fetch(account.webhookUrl, {
+        method: "POST",
+        headers,
+        body,
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      log?.debug?.(`[Bridge] sendMedia: to=${to}`);
+
+      return {
+        channel: "universal-bridge",
+        messageId: String(payload.timestamp),
+      };
+    },
   },
   gateway: {
     startAccount: async (
